@@ -389,8 +389,8 @@ display: none;
 ## Salaries Reported          Location Employment Status         Job Roles 
 ##                 0                 0                 0                 0</code></pre>
 </div>
-<div id="horizontal-bar-plot-mensurando-quantidades" class="section level3">
-<h3>Horizontal Bar Plot: Mensurando Quantidades</h3>
+<div id="horizontal-bar-plot-mensurando-quantidade-de-cargos" class="section level3">
+<h3>Horizontal Bar Plot: Mensurando Quantidade de Cargos</h3>
 <pre class="r"><code>ggplot(df) +
   aes(x = reorder(`Job Roles`, -table(`Job Roles`)[`Job Roles`]), fill = `Employment Status`) +
   geom_bar() +

@@ -41,7 +41,7 @@ colSums(is.na(df))
 
 ```
 
-### Horizontal Bar Plot: Mensurando Quantidades
+### Horizontal Bar Plot: Mensurando Quantidade de Cargos
 
 ```{r}
 ggplot(df) +
