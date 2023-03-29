@@ -1,0 +1,74 @@
+---
+title: "R Project"
+author: "Iara Cristina Mescua Castro"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r entrada, include=FALSE}
+library(corrplot)
+library(readxl)
+library(car)
+library(tidyverse)
+library(reactable)
+library(ggplot2)
+library(plotly)
+library(forcats)
+library(dplyr)
+
+
+df <- read_csv("Salary_Dataset_with_Extra_Features.csv", col_names=TRUE)
+```
+
+### Estatística Descritiva
+
+```{r nome , echo= F}
+summary(df)
+```
+
+### Colunas
+
+```{r}
+colnames(df)
+```
+
+
+### Verificando os valores NA
+
+```{r}
+
+colSums(is.na(df))
+
+```
+
+### Horizontal Bar Plot: Mensurando Quantidades
+
+```{r}
+ggplot(df) +
+  aes(x = reorder(`Job Roles`, -table(`Job Roles`)[`Job Roles`]), fill = `Employment Status`) +
+  geom_bar() +
+  scale_fill_hue(direction = 1) +
+  coord_flip() +
+  theme_minimal()
+```
+
+### Vertical Bar Plot: Média de Salário por Cargo
+
+```{r}
+mean <- df %>% 
+  group_by(`Job Roles`) %>% 
+  summarise(mean_salary = mean(`Salary`)) %>% 
+  mutate(mean_salary = round(mean_salary))
+
+mean
+```
+
+```{r}
+ggplot(mean, aes(x = `Job Roles`, y = mean_salary, fill = `Job Roles`)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Job Roles", y = "Mean Salary") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        plot.title = element_text(size = 15))
+```
+
