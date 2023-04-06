@@ -25,6 +25,8 @@ if (!require(gridExtra)) install.packages('gridExtra')
 if (!require(plotly)) install.packages('plotly')
 if (!require(gapminder)) install.packages('gapminder')
 if (!require(quantmod)) install.packages('quantmod')
+if (!require(patchwork)) install.packages('patchwork')
+if (!require(grid)) install.packages('grid')
 
 df <- read_csv("mxmh_survey_results.csv", col_names=TRUE)
 
@@ -33,7 +35,7 @@ knitr::opts_chunk$set(  warning = FALSE,
                       echo = FALSE)
 ```
 
-### Contexto
+## Contexto
 Musicoterapia, ou MT, é o uso da música para melhorar o estresse, o humor e a saúde mental geral de um indivíduo. A MT também é reconhecida como uma prática baseada em evidências, usando a música como catalisadora de hormônios "felizes", como a oxitocina.
 
 No entanto, o MT emprega uma ampla gama de gêneros diferentes, variando de uma organização para outra.
@@ -42,171 +44,263 @@ O conjunto de dados "MxMH" visa identificar quais correlações, se houver, exis
 
 
 ```{r columns, include=FALSE}
-
+## Cria coluna classificando os números de horas em intervalos
 df <- df %>% 
   mutate(
-    Ansiedade = case_when(
-      Anxiety > 8 ~ "Muito Alto",
-      6 < Anxiety & Anxiety <= 8 ~ "Alto",
-      3 < Anxiety & Anxiety <= 6 ~ "Medio",
-      Anxiety <=3 ~ "Baixo",
-  )
-)
-df$Ansiedade = factor(df$Ansiedade, levels = c('Muito Alto', 'Alto','Medio', 'Baixo'))
-
-df <- df %>% 
-  mutate(
-    Depressao = case_when(
-      Depression > 8 ~ "Muito Alto",
-      6 < Depression & Depression <= 8 ~ "Alto",
-      3 < Depression & Depression <= 6 ~ "Medio",
-      Depression <=3 ~ "Baixo",
+    Intervalos = case_when(
+      `Hours per day` < 2 ~ "0-2 Horas",
+      2 <= `Hours per day` & `Hours per day` < 4 ~ "2-4 Horas",
+      4 <= `Hours per day` & `Hours per day` < 6 ~ "4-6 Horas",
+      `Hours per day` >= 6 ~ "6-24 Horas",
   )
 )
 
-df$Depressao = factor(df$Depressao, levels = c('Muito Alto', 'Alto','Medio', 'Baixo'))
+## Troca todos os valores "Video game music" por "Video Game" no dataset
+df$`Fav genre` <- ifelse(df$`Fav genre` == "Video game music", "Video Game", df$`Fav genre`)
 
-df <-df %>% 
-  mutate(
-    Insonia = case_when(
-      Insomnia > 8 ~ "Muito Alto",
-      6 < Insomnia & Insomnia <= 8 ~ "Alto",
-      3 < Insomnia & Insomnia <= 6 ~ "Medio",
-      Insomnia <=3 ~ "Baixo",
-  )
-)
 
-df$Insonia = factor(df$Insonia, levels = c('Muito Alto', 'Alto','Medio', 'Baixo'))
+df$Intervalos = factor(df$Intervalos, levels = c("0-2 Horas", "2-4 Horas", "4-6 Horas", "6-24 Horas"))
 
-df <-df %>% 
-  mutate(
-    TOC = case_when(
-      OCD > 8 ~ "Muito Alto",
-      6 < OCD & OCD <= 8 ~ "Alto",
-      3 < OCD & OCD <= 7 ~ "Medio",
-      OCD <=3 ~ "Baixo",
-  )
-)
-
-df$TOC = factor(df$TOC, levels = c('Muito Alto', 'Alto','Medio', 'Baixo'))
-
-df <- df %>% 
-  mutate(
-    Quantidade_de_Horas = case_when(
-      `Hours per day` >= 6 ~ "6-24",
-      4 <= `Hours per day` & `Hours per day` < 6 ~ "4-6",
-      2 <= `Hours per day` & `Hours per day` < 4 ~ "2-4",
-      `Hours per day` < 2 ~ "0-2",
-  )
-)
-
-df$Quantidade_de_Horas = factor(df$Quantidade_de_Horas, levels = c('6-24', '4-6','2-4', '0-2'))
-
+## Dataframes auxiliares
 df2 <- df[,c("Anxiety","Depression","OCD", "Insomnia")]
-df3 <- df[,c("Ansiedade","Depressao","TOC","Insonia")]
-
+df3 <- df[,c("Age", "Hours per day", "Intervalos")]
 ```
+
+## Dados Faltantes
+Sumário de dados NA (Not Avaliable) que são diferentes de 0 no nosso dataset em cada coluna.
+```{r}
+na_summary <- colSums(is.na(df))
+na_summary[na_summary != 0]
+```
+
+Das colunas acima, iremos utilizar "Age", "Primary Streaming Service" e "Music effects", aplicando filtros para desconsiderar linhas com dados NA em cada ocasião. Já BPM (batimentos por minuto) possui um número significativo de NA então não será levada em consideração.
+
+## Horas e Idade
+Vamos começar extraindo dados sobre o nosso grupo de estudo. Vamos ver como os fatores "idade" e "quantas horas por dia os usuários escutam música por dia" aparecem.
 
 ### Estatística Descritiva
 
 ```{r nome1 , echo= F}
-summary(df2)
-```
-
-Neste dataset, os entrevistados classificam Ansiedade, Depressão, Insônia e TOC (OCD) em uma escala de 0 a 10, onde:\
-0 - Eu não sinto isso.\
-10 - Eu experimento isso regularmente, constantemente/ou ao extremo.\
-
-Vamos criar novas colunas para categorizar esses números em "Muito Alto", "Alto", "Médio","Baixo".
-
-```{r nome2, echo=F}
 summary(df3)
 ```
 
-### Horas/Dia X Idade
+### Análise Quantitativa
+
 ```{r}
-df %>%
-  filter(!(`Fav genre` %in% "R&B")) %>%
-  ggplot() +
+## BAR PLOT / Histograma de Idade
+idade <- df %>%
+ filter(!is.na(Age)) %>%
+ filter(!(`Fav genre` %in% "R&B")) %>%
+ ggplot() +
   aes(x = Age) +
-  geom_histogram(bins = 25L, fill = "#0C4C8A") +
-  theme_minimal() +
-  facet_wrap(vars(Quantidade_de_Horas))
+  geom_histogram(bins = 30L, fill = "#0C4C8A") +
+  labs(title = NULL, x = "Idade", y = NULL) +
+  theme_minimal()
+
+## BAR PLOT / Histograma de Horas/Dia 
+horas <- df %>%
+ filter(!is.na(Age)) %>%
+ ggplot() +
+  aes(x = `Hours per day`) +
+  geom_histogram(bins = 20L, fill = "#0C4C8A") +
+  labs(title = NULL, x = "Horas/Dia ouvindo música", y = NULL) +
+  theme_minimal()
+```
+
+```{r, fig.height=2}
+## Arranjo 2 colunas e 1 linha
+grid.arrange(arrangeGrob(idade, horas, ncol = 2), 
+             nrow=1)
+```
+
+É possível notar que há maior abundância de jovens entre 20 e 30 anos, e estão mais presentes nos intervalo 0-2 e 2-4 horas por dia ouvindo música. 
+
+## Distribuição Idade x Gênero Musical
+
+```{r}
+## BOX PLOT 
+ggplot(df %>% filter(!is.na(Age)), aes(x = Age, y = reorder(`Fav genre`, desc(`Fav genre`)), fill = `Fav genre`)) +
+  geom_boxplot(fill = "#0C4C8A") +
+  labs(x = NULL, y = NULL, title = NULL) +
+  theme_bw() 
+```
+
+Os gêneros musicais favoritos podem se relacionar à idade, visto que a popularidade do Gospel é maior entre os idosos.
+
+## Doenças Mentais
+
+Neste dataset, os entrevistados classificam Ansiedade, Depressão, TOC (OCD) e Insônia em uma escala de 0 a 10, onde:\
+0 - Eu não sinto isso.\
+10 - Eu experimento isso regularmente, constantemente/ou ao extremo.\
+
+Com base nisso podemos começar observando algumas informações sobre cada uma.
+
+### Estatística Descritiva
+```{r nome2 , echo= F}
+# Sumário
+summary(df2)
 ```
 
 
-### Gêneros Musicais X Serviço de Streaming
+### Correlação
+Em seguida, iremos plotar a correlação entre as doenças.
+
+```{r, fig.width=4.5, fig.height=4.5, fig.align="left"}
+# Cria matriz de correlação com os índices numéricos de cada doença
+cor_mat <- cor(df2)
+# Plot de Correlação
+corrplot(cor_mat, method = "color", tl.col = 'black', tl.srt = 45)
+```
+
+Há correlação positiva em todos os casos. Ao ter uma doença há maior tendência em ter outra, especialmente entre ansiedade e depressão.
+
+### Distribuição Gênero Musical x Doenças
+A seguir, está a distribuição das doenças para cada doença mental.
+
+```{r effects, include=FALSE}
+## BOX PLOT de Ansiedade
+g1 <- ggplot(df, aes(x = `Anxiety`, reorder(`Fav genre`, desc(`Fav genre`)))) +
+  geom_boxplot(fill = "#0C4C8A") +
+  labs(title = paste("Dist. de Ansiedade")) +
+  theme_gray() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+## BOX PLOT de Depressão
+g2 <- ggplot(df, aes(x = Depression, reorder(`Fav genre`, desc(`Fav genre`)))) +
+  geom_boxplot(fill = "#0C4C8A") +
+  labs(title = paste("Dist. de Depressão")) +
+  theme_gray() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+## BOX PLOT de Insônia
+g3 <- ggplot(df, aes(x = Insomnia, reorder(`Fav genre`, desc(`Fav genre`)))) +
+  geom_boxplot(fill = "#0C4C8A") +
+  labs(title = paste("Dist. de Insônia")) +
+  theme_gray() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+## BOX PLOT de TOC
+g4 <- ggplot(df, aes(x = OCD, reorder(`Fav genre`, desc(`Fav genre`)))) +
+  geom_boxplot(fill = "#0C4C8A") +
+  labs(title = paste("Dist. de TOC")) +
+  theme_gray() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+
+```
+
+```{r,fig.height=10}
+## Arranjo de 2 colunas e 2 linhas
+grid.arrange(arrangeGrob(g1, g2, ncol = 2),  
+             arrangeGrob(g3, g4, ncol = 2), 
+             nrow = 2, 
+             heights = c(4, 4))
+```
+
+## Efeitos da Música
+
+Os entrevistados também responderam qual efeito a música teve em sua saúde mental com as respostas "Pior", "Melhor", "Nenhum efeito".
+
+### Preferências Musicais e de Streaming
+
+Antes disso, vamos verificar as preferências de gênero musical e os serviços de streaming mais utilizados por eles.
+
+```{r chart, include=FALSE}
+### PIE CHARTS
+chart1 <- df %>% 
+  filter(!is.na(`Fav genre`)) %>% 
+  group_by(`Fav genre`) %>% # Agrupa por gênero musical favorito
+  summarise(Freq = n()) %>% # Conta frequência de cada um
+  ggplot(aes(x = "", y = Freq, fill = `Fav genre`)) +
+  geom_bar(width = 1, stat = "identity") +
+  coord_polar(theta = "y") +
+  labs(fill = "") + # Remove o label da legenda de cores
+  ylab("") + # Remove o label do eixo x
+  xlab("") + # Remove o label do eixo y
+  theme_void() +  # Remove fundo e grade do gráfico
+  theme(
+        panel.grid.major = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()
+        ) 
+
+chart2 <- df %>% 
+  filter(!is.na(`Primary streaming service`)) %>% # Agrupa por serviço de streaming primário
+  group_by(`Primary streaming service`) %>% # Conta frequência de cada um
+  summarise(Freq = n()) %>%
+  ggplot(aes(x = "", y = Freq, fill = `Primary streaming service`)) +
+  geom_bar(width = 1, stat = "identity") +
+  coord_polar(theta = "y") +
+  labs(fill = "") + # Remove o label da legenda de cores
+  ylab("") + # Remove o label do eixo x
+  xlab("") + # Remove o label do eixo y
+  theme_void() +  # Remove fundo e grade do gráfico
+  theme(
+        panel.grid.major = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()
+        ) 
+
+```
+
 
 ```{r}
+chart1 + chart2 + plot_layout(ncol = 2)
+```
+
+Observamos que o gênero musical favorito do grupo de estudo é o rock, seguido pelo pop e metal. Já o serviço de Streaming mais utilizado é o Spotify. Os gêneros musicais não estão bem distribuídos, então para a próxima análise levaremos em conta as porcentagens e não a quantidade bruta.
+
+```{r stream, include=FALSE} 
+## GRÁFICO DE BARRAS NÃO UTILIZADO
 df %>%
- filter(!(`Fav genre` %in% "R&B")) %>%
- ggplot() +
+  ggplot() +
   aes(x = `Fav genre`, fill = `Primary streaming service`) +
   geom_bar() +
   scale_fill_hue(direction = 1) +
   coord_flip() +
   theme_minimal()
-```
-
-### Efeitos da Música x Doenças Mentais
-```{r effects, include=FALSE}
-g1 <- ggplot(df %>% filter(!(`Fav genre` %in% "R&B")), aes(x = Anxiety, y = `Music effects`)) +
-  geom_boxplot(fill = "#0C4C8A") +
-  coord_flip() +
-  theme_gray()
-
-g2 <- ggplot(df %>% filter(!(`Fav genre` %in% "R&B")), aes(x = Depression, y = `Music effects`)) +
-  geom_boxplot(fill = "#0C4C8A") +
-  coord_flip() +
-  theme_gray()
-
-g3 <- ggplot(df %>% filter(!(`Fav genre` %in% "R&B")), aes(x = Insomnia, y = `Music effects`)) +
-  geom_boxplot(fill = "#0C4C8A") +
-  coord_flip() +
-  theme_gray()
-
-g4 <- ggplot(df %>% filter(!(`Fav genre` %in% "R&B")), aes(x = OCD, y = `Music effects`)) +
-  geom_boxplot(fill = "#0C4C8A") +
-  coord_flip() +
-  theme_gray()
 
 ```
+
+### Relação Efeitos da Música x Gênero Musical
+
+Vamos observar os efeitos da música tomando a porcentagem de cada grupo, assim superamos as diferenças de quantidade entre os ouvintes de cada gênero musical.
 
 ```{r}
-grid.arrange(arrangeGrob(g1, g2, ncol=2), arrangeGrob(g3, g4, ncol=2), nrow = 2)
+# Calcula Porcentagem
+df_fav_genre <- df %>%
+  filter(!is.na(`Music effects`)) %>%
+  group_by(`Fav genre`, `Music effects`) %>%
+  summarise(Percentage = n()) %>%
+  mutate(Percentage = Percentage / sum(Percentage) * 100)
+  
+
+# Gráfico de Barras Horizontal
+ggplot(df_fav_genre, aes(x = `Fav genre`, y = Percentage, fill = `Music effects`)) +
+  geom_col(position = "identity", width = 0.8) +
+  labs(title = NULL, x = NULL, y = "Porcentagem") +
+  scale_fill_discrete(name = "Music effects") +
+  coord_flip() +
+  scale_x_discrete(limits = rev(levels(factor(df_fav_genre$`Fav genre`)))) +
+  theme_minimal() 
 ```
 
-### Correlação entre Doenças Mentais
-```{r corr, include=FALSE}
-df3 <- df3 %>%
-  mutate(Ansiedade = case_when(
-    Ansiedade == "Muito Alto" ~ 4,
-    Ansiedade == "Alto" ~ 3,
-    Ansiedade == "Medio" ~ 2,
-    Ansiedade == "Baixo" ~ 1),
-    Depressao = case_when(
-      Depressao == "Muito Alto" ~ 4,
-      Depressao == "Alto" ~ 3,
-      Depressao == "Medio" ~ 2,
-      Depressao == "Baixo" ~ 1),
-    Insonia = case_when(
-      Insonia == "Muito Alto" ~ 4,
-      Insonia == "Alto" ~ 3,
-      Insonia == "Medio" ~ 2,
-      Insonia == "Baixo" ~ 1),
-    TOC = case_when(
-      TOC == "Muito Alto" ~ 4,
-      TOC == "Alto" ~ 3,
-      TOC == "Medio" ~ 2,
-      TOC == "Baixo" ~ 1))
-```
+Há muitos dados faltantes, especialmente para ouvintes de música Latina no grupo "Latin", mas com o gráfico de barras acima reconhecemos um retorno majoritariamente positivo da música na saúde mental para ouvintes de todos os gêneros musicais.
 
-```{r}
-cor_mat <- cor(df3)
-corrplot(cor_mat, method = "color", tl.col = 'black')
+## Conclusões
+Foi possível conhecer mais sobre os perfis dos ouvintes de música: a maioria são jovens, ouvem música via Spotify e seus 3 principais gêneros musicais são rock, pop e metal. E também, Gospel é predominante entre os idosos. Em suma, mais pessoas têm ansiedade e depressão do que TOC e insônia, onde existem correlações entre ansiedade e depressão. Não foi fácil inferir o estado de saúde mental a partir dos dados. Vimos que a maioria dos ouvintes acha que a música melhora sua saúde mental e é notável a ausência de efeitos negativos para quem prefere "Lo-fi" e "Gospel".
 
-```
-
-### Referências
+## Referências
 
 1. [https://www.kaggle.com/datasets/catherinerasgaitis/mxmh-survey-results](https://www.kaggle.com/datasets/catherinerasgaitis/mxmh-survey-results)
