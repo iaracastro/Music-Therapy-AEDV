@@ -73,7 +73,7 @@ na_summary <- colSums(is.na(df))
 na_summary[na_summary != 0]
 ```
 
-Das colunas acima, iremos utilizar "Age", "Primary Streaming Service" e "Music effects", aplicando filtros para desconsiderar linhas com dados NA em cada ocasião. Já BPM (batimentos por minuto) possui um número significativo de NA então não será levada em consideração.
+Das colunas acima, iremos utilizar "Age", "Primary Streaming Service" e "Music effects", aplicando filtros para desconsiderar linhas com dados NA em cada ocasião. Já BPM (batimentos por minuto) possui um número significativo de NA então não será levado em consideração.
 
 ## Horas e Idade
 Vamos começar extraindo dados sobre o nosso grupo de estudo. Vamos ver como os fatores "idade" e "quantas horas por dia os usuários escutam música por dia" aparecem.
@@ -299,7 +299,7 @@ ggplot(df_fav_genre, aes(x = `Fav genre`, y = Percentage, fill = `Music effects`
 Há muitos dados faltantes, especialmente para ouvintes de música Latina no grupo "Latin", mas com o gráfico de barras acima reconhecemos um retorno majoritariamente positivo da música na saúde mental para ouvintes de todos os gêneros musicais.
 
 ## Conclusões
-Foi possível conhecer mais sobre os perfis dos ouvintes de música: a maioria são jovens, ouvem música via Spotify e seus 3 principais gêneros musicais são rock, pop e metal. E também, Gospel é predominante entre os idosos. Em suma, mais pessoas têm ansiedade e depressão do que TOC e insônia, onde existem correlações entre ansiedade e depressão. Não foi fácil inferir o estado de saúde mental a partir dos dados. Vimos que a maioria dos ouvintes acha que a música melhora sua saúde mental e é notável a ausência de efeitos negativos para quem prefere "Lo-fi" e "Gospel".
+Foi possível conhecer mais sobre os perfis dos ouvintes de música: a maioria são jovens, ouvem música via Spotify e seus 3 principais gêneros musicais são rock, pop e metal. E também, Gospel é predominante entre os idosos. Em suma, mais pessoas têm ansiedade e depressão do que TOC e insônia, onde existem correlações entre ansiedade e depressão. Não foi fácil inferir o estado de saúde mental a partir dos dados, mas vimos que a maioria dos ouvintes acha que a música melhora sua saúde mental e é notável a ausência de efeitos negativos para quem prefere "Lo-fi" e "Gospel".
 
 ## Referências
 
